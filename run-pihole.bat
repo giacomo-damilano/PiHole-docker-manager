@@ -7,11 +7,15 @@
 setlocal enabledelayedexpansion
 
 :: ----- CONFIG -----
-set PIHOLE_IP=192.168.1.10        :: IP of your Pi-hole container or host
-set BACKUP_DNS=8.8.8.8            :: Secondary DNS (Google, Cloudflare, etc.)
-set COMPOSE_FILE=docker-compose.yml
-set MAX_WAIT=60                   :: Max wait time in seconds for Docker readiness
-set WAIT_INTERVAL=5               :: Interval between checks (seconds)
+REM IP of your Pi-hole container or host
+set "PIHOLE_IP=192.168.1.10"
+REM Secondary DNS (Google, Cloudflare, etc.)
+set "BACKUP_DNS=8.8.8.8"
+set "COMPOSE_FILE=docker-compose.yml"
+REM Max wait time in seconds for Docker readiness
+set "MAX_WAIT=60"
+REM Interval between checks (seconds)
+set "WAIT_INTERVAL=5"
 
 :: ----- CHECK DOCKER INSTALLED -----
 where docker >nul 2>nul
