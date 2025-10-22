@@ -4,7 +4,7 @@
 ::  Run this script as Administrator
 :: ======================================================
 
-setlocal EnableExtensions EnableDelayedExpansion
+setlocal EnableExtensions
 
 :: ----- CONFIG -----
 REM IP of your Pi-hole container or host
@@ -26,37 +26,41 @@ if errorlevel 1 (
 )
 
 :: ----- WAIT FOR DOCKER TO START -----
-echo.
+echo(
 echo Checking if Docker daemon is running...
 
 :: Try to start the Docker Desktop service if it exists but is not yet running
 set "DOCKER_SERVICE_STATE="
-sc query com.docker.service >nul 2>nul
-if not errorlevel 1 (
-    for /f "tokens=3" %%S in ('sc query com.docker.service ^| find "STATE"') do set "DOCKER_SERVICE_STATE=%%S"
-    if /i not "!DOCKER_SERVICE_STATE!"=="RUNNING" (
+for /f "tokens=3" %%S in ('sc query com.docker.service 2^>nul ^| find "STATE"') do set "DOCKER_SERVICE_STATE=%%S"
+if defined DOCKER_SERVICE_STATE (
+    if /i not "%DOCKER_SERVICE_STATE%"=="RUNNING" (
         echo Starting Docker Desktop service (requires Docker Desktop installed)...
         net start com.docker.service >nul 2>nul
     )
 )
 
-set /a elapsed=0
+set "elapsed=0"
 :WAIT_DOCKER
 docker info >nul 2>nul
-if not errorlevel 1 goto DOCKER_READY
+set "rc=%errorlevel%"
+if "%rc%"=="0" goto DOCKER_READY
 
-if !elapsed! GEQ !MAX_WAIT! goto DOCKER_TIMEOUT
+if %elapsed% GEQ %MAX_WAIT% goto DOCKER_TIMEOUT
 
-set "status_msg=Docker is not ready yet. Waiting up to !MAX_WAIT! seconds for it to respond..."
-if !elapsed! GTR 0 set "status_msg=Waiting for Docker to start... !elapsed!s elapsed out of !MAX_WAIT!s total."
-echo !status_msg!
+if %elapsed% EQU 0 goto FIRST_WAIT_MESSAGE
+echo Waiting for Docker to start - %elapsed%s elapsed of %MAX_WAIT%s total.
+goto AFTER_WAIT_MESSAGE
 
-timeout /t !WAIT_INTERVAL! >nul
+:FIRST_WAIT_MESSAGE
+echo Docker is not ready yet. Waiting up to %MAX_WAIT% seconds for it to respond.
+
+:AFTER_WAIT_MESSAGE
+timeout /t %WAIT_INTERVAL% >nul
 set /a elapsed+=WAIT_INTERVAL
 goto WAIT_DOCKER
 
 :DOCKER_TIMEOUT
-echo Docker did not become ready within !MAX_WAIT! seconds.
+echo Docker did not become ready within %MAX_WAIT% seconds.
 pause
 exit /b 1
 
@@ -64,14 +68,14 @@ exit /b 1
 echo Docker is running and ready.
 
 :: ----- FIND ACTIVE NETWORK INTERFACE -----
-echo.
+echo(
 echo Detecting active network interface...
 for /f "tokens=2 delims=:" %%A in ('netsh interface show interface ^| find "Connected"') do (
     set "INTERFACE=%%A"
 )
 set INTERFACE=%INTERFACE:~1%
 echo Interface found: "%INTERFACE%"
-echo.
+echo(
 
 :: ----- STORE CURRENT DNS SETTINGS -----
 echo Backing up current DNS settings...
@@ -91,7 +95,7 @@ if not defined OLD_DNS (
 )
 
 echo Previous DNS stored: %OLD_DNS%
-echo.
+echo(
 
 :: ----- START DOCKER COMPOSE -----
 echo Starting Pi-hole container...
@@ -102,12 +106,12 @@ if errorlevel 1 (
 )
 
 :: ----- SET NEW DNS -----
-echo.
+echo(
 echo Setting DNS to use Pi-hole (%PIHOLE_IP%) and backup (%BACKUP_DNS%)...
 netsh interface ipv4 set dns name="%INTERFACE%" static %PIHOLE_IP% primary
 netsh interface ipv4 add dns name="%INTERFACE%" %BACKUP_DNS% index=2
 echo [OK] DNS updated.
-echo.
+echo(
 
 :: ----- MONITOR CONTAINER -----
 echo Pi-hole is running. Waiting for container to stop...
@@ -117,7 +121,7 @@ docker ps --format "{{.Names}}" | find /i "pihole" >nul
 if not errorlevel 1 goto WAITLOOP
 
 :: ----- RESTORE OLD DNS -----
-echo.
+echo(
 echo Pi-hole container stopped. Restoring previous DNS...
 if /i "%OLD_DNS%"=="dhcp" (
     netsh interface ipv4 set dnsservers name="%INTERFACE%" source=dhcp
@@ -127,7 +131,7 @@ if /i "%OLD_DNS%"=="dhcp" (
 echo [OK] DNS restored to %OLD_DNS%.
 
 :END
-echo.
+echo(
 echo ------------------------------------------------------
 echo All done. Pi-hole stopped, DNS restored.
 echo ------------------------------------------------------
