@@ -10,7 +10,7 @@ cls
 echo ======================================================
 echo Docker readiness loop diagnostic suite
 echo ======================================================
-echo(
+call :BlankLine
 
 where docker >nul 2>nul
 if errorlevel 1 (
@@ -25,15 +25,19 @@ if errorlevel 1 (
     echo "[INFO] Initial docker info probe SUCCEEDED (daemon already reachable)."
 )
 
-echo(
+call :BlankLine
 call :RunTest 1 "IF ERRORLEVEL comparison"
 call :RunTest 2 "Command chaining with AND/OR operators"
 call :RunTest 3 "Separate subroutine with explicit return codes"
 
-echo(
+call :BlankLine
 echo Diagnostics complete. Individual logs stored under:
 echo    %TEST_ROOT%\logs
-echo(
+call :BlankLine
+exit /b 0
+
+:BlankLine
+echo.
 exit /b 0
 
 :RunTest
@@ -57,7 +61,7 @@ set "RC=%ERRORLEVEL%"
 type "%LOG%"
 echo ------------------------------------------------------
 echo "[Test %ID%] Exit code: %RC%"
-echo(
+call :BlankLine
 endlocal & exit /b 0
 
 :WriteTest1
