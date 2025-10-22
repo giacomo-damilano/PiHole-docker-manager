@@ -62,6 +62,34 @@ exit /b 1
 :DOCKER_READY
 echo Docker is running and ready.
 
+set "elapsed=0"
+:WAIT_DOCKER
+docker info >nul 2>nul
+set "rc=%errorlevel%"
+if "%rc%"=="0" goto DOCKER_READY
+
+if %elapsed% GEQ %MAX_WAIT% goto DOCKER_TIMEOUT
+
+if %elapsed% EQU 0 goto FIRST_WAIT_MESSAGE
+echo Waiting for Docker to start - %elapsed%s elapsed of %MAX_WAIT%s total.
+goto AFTER_WAIT_MESSAGE
+
+:FIRST_WAIT_MESSAGE
+echo Docker is not ready yet. Waiting up to %MAX_WAIT% seconds for it to respond.
+
+:AFTER_WAIT_MESSAGE
+timeout /t %WAIT_INTERVAL% >nul
+set /a elapsed+=WAIT_INTERVAL
+goto WAIT_DOCKER
+
+:DOCKER_TIMEOUT
+echo Docker did not become ready within %MAX_WAIT% seconds.
+pause
+exit /b 1
+
+:DOCKER_READY
+echo Docker is running and ready.
+
 :: ----- FIND ACTIVE NETWORK INTERFACE -----
 echo(
 echo Detecting active network interface...
