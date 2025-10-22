@@ -28,18 +28,34 @@ if errorlevel 1 (
 :: ----- WAIT FOR DOCKER TO START -----
 echo.
 echo Checking if Docker daemon is running...
+
+:: Try to start the Docker Desktop service if it exists but is not yet running
+set "DOCKER_SERVICE_STATE="
+sc query com.docker.service >nul 2>nul
+if not errorlevel 1 (
+    for /f "tokens=3" %%S in ('sc query com.docker.service ^| find "STATE"') do set "DOCKER_SERVICE_STATE=%%S"
+    if /i not "!DOCKER_SERVICE_STATE!"=="RUNNING" (
+        echo Starting Docker Desktop service (requires Docker Desktop installed)...
+        net start com.docker.service >nul 2>nul
+    )
+)
+
 set /a elapsed=0
 :WAIT_DOCKER
 docker info >nul 2>nul
 if errorlevel 1 (
-    if %elapsed% GEQ %MAX_WAIT% (
-        echo Docker did not become ready within %MAX_WAIT% seconds.
+    if !elapsed! GEQ !MAX_WAIT! (
+        echo Docker did not become ready within !MAX_WAIT! seconds.
         pause
         exit /b 1
     )
-    echo Waiting for Docker to start... (%elapsed%/%MAX_WAIT%s)
-    timeout /t %WAIT_INTERVAL% >nul
-    set /a elapsed+=%WAIT_INTERVAL%
+    if !elapsed! EQU 0 (
+        echo Docker is not ready yet. Waiting up to !MAX_WAIT! seconds for it to respond...
+    ) else (
+        echo Waiting for Docker to start... !elapsed!/!MAX_WAIT!s elapsed.
+    )
+    timeout /t !WAIT_INTERVAL! >nul
+    set /a elapsed+=WAIT_INTERVAL
     goto WAIT_DOCKER
 )
 echo Docker is running and ready.
