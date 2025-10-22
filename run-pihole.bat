@@ -56,6 +56,7 @@ if !elapsed! EQU 0 (
 ) else (
     echo Waiting for Docker to start... !elapsed!s elapsed out of !MAX_WAIT!s total.
 )
+echo Docker is running and ready.
 
 timeout /t !WAIT_INTERVAL! >nul
 set /a elapsed+=WAIT_INTERVAL
