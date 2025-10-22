@@ -7,16 +7,20 @@
 setlocal enabledelayedexpansion
 
 :: ----- CONFIG -----
-set PIHOLE_IP=192.168.1.10        :: IP of your Pi-hole container or host
-set BACKUP_DNS=8.8.8.8            :: Secondary DNS (Google, Cloudflare, etc.)
-set COMPOSE_FILE=docker-compose.yml
-set MAX_WAIT=60                   :: Max wait time in seconds for Docker readiness
-set WAIT_INTERVAL=5               :: Interval between checks (seconds)
+REM IP of your Pi-hole container or host
+set "PIHOLE_IP=192.168.1.10"
+REM Secondary DNS (Google, Cloudflare, etc.)
+set "BACKUP_DNS=8.8.8.8"
+set "COMPOSE_FILE=docker-compose.yml"
+REM Max wait time in seconds for Docker readiness
+set "MAX_WAIT=60"
+REM Interval between checks (seconds)
+set "WAIT_INTERVAL=5"
 
 :: ----- CHECK DOCKER INSTALLED -----
 where docker >nul 2>nul
 if errorlevel 1 (
-    echo ❌ Docker not found in PATH. Please install Docker Desktop or add Docker CLI to PATH.
+    echo [ERROR] Docker not found in PATH. Please install Docker Desktop or add Docker CLI to PATH.
     pause
     exit /b 1
 )
@@ -27,11 +31,9 @@ echo Checking if Docker daemon is running...
 set /a elapsed=0
 :WAIT_DOCKER
 docker info >nul 2>nul
-if %errorlevel%==0 (
-    echo ✅ Docker is running and ready.
-) else (
+if errorlevel 1 (
     if %elapsed% GEQ %MAX_WAIT% (
-        echo ❌ Docker did not become ready within %MAX_WAIT% seconds.
+        echo Docker did not become ready within %MAX_WAIT% seconds.
         pause
         exit /b 1
     )
@@ -40,6 +42,7 @@ if %errorlevel%==0 (
     set /a elapsed+=%WAIT_INTERVAL%
     goto WAIT_DOCKER
 )
+echo Docker is running and ready.
 
 :: ----- FIND ACTIVE NETWORK INTERFACE -----
 echo.
@@ -75,7 +78,7 @@ echo.
 echo Starting Pi-hole container...
 docker compose -f "%COMPOSE_FILE%" up -d
 if errorlevel 1 (
-    echo ❌ Failed to start Docker Compose. Aborting.
+    echo [ERROR] Failed to start Docker Compose. Aborting.
     goto END
 )
 
@@ -84,7 +87,7 @@ echo.
 echo Setting DNS to use Pi-hole (%PIHOLE_IP%) and backup (%BACKUP_DNS%)...
 netsh interface ipv4 set dns name="%INTERFACE%" static %PIHOLE_IP% primary
 netsh interface ipv4 add dns name="%INTERFACE%" %BACKUP_DNS% index=2
-echo ✅ DNS updated.
+echo [OK] DNS updated.
 echo.
 
 :: ----- MONITOR CONTAINER -----
@@ -92,7 +95,7 @@ echo Pi-hole is running. Waiting for container to stop...
 :WAITLOOP
 timeout /t 10 >nul
 docker ps --format "{{.Names}}" | find /i "pihole" >nul
-if %errorlevel%==0 goto WAITLOOP
+if not errorlevel 1 goto WAITLOOP
 
 :: ----- RESTORE OLD DNS -----
 echo.
@@ -102,7 +105,7 @@ if /i "%OLD_DNS%"=="dhcp" (
 ) else (
     netsh interface ipv4 set dnsservers name="%INTERFACE%" static %OLD_DNS%
 )
-echo ✅ DNS restored to %OLD_DNS%.
+echo [OK] DNS restored to %OLD_DNS%.
 
 :END
 echo.
