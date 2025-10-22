@@ -20,7 +20,7 @@ set "WAIT_INTERVAL=5"
 :: ----- CHECK DOCKER INSTALLED -----
 where docker >nul 2>nul
 if errorlevel 1 (
-    echo [ERROR] Docker not found in PATH. Please install Docker Desktop or add Docker CLI to PATH.
+    echo "[ERROR] Docker not found in PATH. Please install Docker Desktop or add Docker CLI to PATH."
     pause
     exit /b 1
 )
@@ -32,12 +32,35 @@ echo Checking if Docker daemon is running...
 :: Try to start the Docker Desktop service if it exists but is not yet running
 set "DOCKER_SERVICE_STATE="
 for /f "tokens=3" %%S in ('sc query com.docker.service 2^>nul ^| find "STATE"') do set "DOCKER_SERVICE_STATE=%%S"
-if defined DOCKER_SERVICE_STATE (
-    if /i not "%DOCKER_SERVICE_STATE%"=="RUNNING" (
-        echo Starting Docker Desktop service (requires Docker Desktop installed)...
-        net start com.docker.service >nul 2>nul
-    )
-)
+if defined DOCKER_SERVICE_STATE if /i not "%DOCKER_SERVICE_STATE%"=="RUNNING" call :StartDockerService
+
+set "elapsed=0"
+:WAIT_DOCKER
+docker info >nul 2>nul
+set "rc=%errorlevel%"
+if "%rc%"=="0" goto DOCKER_READY
+
+if %elapsed% GEQ %MAX_WAIT% goto DOCKER_TIMEOUT
+
+if %elapsed% EQU 0 goto FIRST_WAIT_MESSAGE
+echo Waiting for Docker to start - %elapsed%s elapsed of %MAX_WAIT%s total.
+goto AFTER_WAIT_MESSAGE
+
+:FIRST_WAIT_MESSAGE
+echo Docker is not ready yet. Waiting up to %MAX_WAIT% seconds for it to respond.
+
+:AFTER_WAIT_MESSAGE
+timeout /t %WAIT_INTERVAL% >nul
+set /a elapsed+=WAIT_INTERVAL
+goto WAIT_DOCKER
+
+:DOCKER_TIMEOUT
+echo Docker did not become ready within %MAX_WAIT% seconds.
+pause
+exit /b 1
+
+:DOCKER_READY
+echo Docker is running and ready.
 
 set "elapsed=0"
 :WAIT_DOCKER
@@ -101,7 +124,7 @@ echo(
 echo Starting Pi-hole container...
 docker compose -f "%COMPOSE_FILE%" up -d
 if errorlevel 1 (
-    echo [ERROR] Failed to start Docker Compose. Aborting.
+    echo "[ERROR] Failed to start Docker Compose. Aborting."
     goto END
 )
 
@@ -110,7 +133,7 @@ echo(
 echo Setting DNS to use Pi-hole (%PIHOLE_IP%) and backup (%BACKUP_DNS%)...
 netsh interface ipv4 set dns name="%INTERFACE%" static %PIHOLE_IP% primary
 netsh interface ipv4 add dns name="%INTERFACE%" %BACKUP_DNS% index=2
-echo [OK] DNS updated.
+echo "[OK] DNS updated."
 echo(
 
 :: ----- MONITOR CONTAINER -----
@@ -128,7 +151,7 @@ if /i "%OLD_DNS%"=="dhcp" (
 ) else (
     netsh interface ipv4 set dnsservers name="%INTERFACE%" static %OLD_DNS%
 )
-echo [OK] DNS restored to %OLD_DNS%.
+echo "[OK] DNS restored to %OLD_DNS%."
 
 :END
 echo(
@@ -136,3 +159,9 @@ echo ------------------------------------------------------
 echo All done. Pi-hole stopped, DNS restored.
 echo ------------------------------------------------------
 pause
+goto :EOF
+
+:StartDockerService
+echo Starting Docker Desktop service ^(requires Docker Desktop installed^)...
+net start com.docker.service >nul 2>nul
+exit /b
