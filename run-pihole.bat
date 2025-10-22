@@ -43,21 +43,26 @@ if not errorlevel 1 (
 set /a elapsed=0
 :WAIT_DOCKER
 docker info >nul 2>nul
-if errorlevel 1 (
-    if !elapsed! GEQ !MAX_WAIT! (
-        echo Docker did not become ready within !MAX_WAIT! seconds.
-        pause
-        exit /b 1
-    )
-    if !elapsed! EQU 0 (
-        echo Docker is not ready yet. Waiting up to !MAX_WAIT! seconds for it to respond...
-    ) else (
-        echo Waiting for Docker to start... !elapsed!/!MAX_WAIT!s elapsed.
-    )
-    timeout /t !WAIT_INTERVAL! >nul
-    set /a elapsed+=WAIT_INTERVAL
-    goto WAIT_DOCKER
+if not errorlevel 1 goto DOCKER_READY
+
+if !elapsed! GEQ !MAX_WAIT! (
+    echo Docker did not become ready within !MAX_WAIT! seconds.
+    pause
+    exit /b 1
 )
+
+if !elapsed! EQU 0 (
+    echo Docker is not ready yet. Waiting up to !MAX_WAIT! seconds for it to respond...
+) else (
+    echo Waiting for Docker to start... !elapsed!s elapsed out of !MAX_WAIT!s total.
+)
+echo Docker is running and ready.
+
+timeout /t !WAIT_INTERVAL! >nul
+set /a elapsed+=WAIT_INTERVAL
+goto WAIT_DOCKER
+
+:DOCKER_READY
 echo Docker is running and ready.
 
 :: ----- FIND ACTIVE NETWORK INTERFACE -----
