@@ -1,0 +1,43 @@
+# Pi-hole Docker Compose setup
+# More info at: https://github.com/pi-hole/docker-pi-hole/ and https://docs.pi-hole.net/
+
+services:
+  pihole:
+    container_name: pihole
+    image: pihole/pihole:latest
+    ports:
+      # DNS Ports
+      - "53:53/tcp"
+      - "53:53/udp"
+      # Web Interface
+      - "80:80/tcp"
+      # HTTPS (self-signed cert auto-generated)
+      - "443:443/tcp"
+      # Uncomment if you plan to use DHCP
+      # - "67:67/udp"
+      # Uncomment if using Pi-hole as an NTP server
+      # - "123:123/udp"
+
+    environment:
+      # Timezone — change if needed
+      TZ: "Europe/London"
+      # Web admin password — change to your own secure password
+      FTLCONF_webserver_api_password: "correct horse battery staple"
+      # Listen on all interfaces (for bridge network setups)
+      FTLCONF_dns_listeningMode: "all"
+
+    # Persist configuration and data between updates
+    volumes:
+      - "./etc-pihole:/etc/pihole"
+      # Uncomment below if migrating from Pi-hole v5 or using custom dnsmasq configs
+      # - "./etc-dnsmasq.d:/etc/dnsmasq.d"
+
+    cap_add:
+      # Needed for DHCP functionality — safe to omit if not used
+      - NET_ADMIN
+      # Required if you use Pi-hole as an NTP client
+      - SYS_TIME
+      # Optional — gives Pi-hole slightly higher scheduling priority
+      - SYS_NICE
+
+    restart: unless-stopped
