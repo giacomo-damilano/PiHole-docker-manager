@@ -4,7 +4,7 @@
 ::  Run this script as Administrator
 :: ======================================================
 
-setlocal enabledelayedexpansion
+setlocal EnableExtensions EnableDelayedExpansion
 
 :: ----- CONFIG -----
 REM IP of your Pi-hole container or host
@@ -45,22 +45,20 @@ set /a elapsed=0
 docker info >nul 2>nul
 if not errorlevel 1 goto DOCKER_READY
 
-if !elapsed! GEQ !MAX_WAIT! (
-    echo Docker did not become ready within !MAX_WAIT! seconds.
-    pause
-    exit /b 1
-)
+if !elapsed! GEQ !MAX_WAIT! goto DOCKER_TIMEOUT
 
-if !elapsed! EQU 0 (
-    echo Docker is not ready yet. Waiting up to !MAX_WAIT! seconds for it to respond...
-) else (
-    echo Waiting for Docker to start... !elapsed!s elapsed out of !MAX_WAIT!s total.
-)
-echo Docker is running and ready.
+set "status_msg=Docker is not ready yet. Waiting up to !MAX_WAIT! seconds for it to respond..."
+if !elapsed! GTR 0 set "status_msg=Waiting for Docker to start... !elapsed!s elapsed out of !MAX_WAIT!s total."
+echo !status_msg!
 
 timeout /t !WAIT_INTERVAL! >nul
 set /a elapsed+=WAIT_INTERVAL
 goto WAIT_DOCKER
+
+:DOCKER_TIMEOUT
+echo Docker did not become ready within !MAX_WAIT! seconds.
+pause
+exit /b 1
 
 :DOCKER_READY
 echo Docker is running and ready.
